@@ -37,7 +37,6 @@ dependencies:
   flutter_bloc: ^9.1.1
   equatable: ^3.0.0
   path: ^1.9.1
-  watcher: ^1.2.1
   path_provider: ^2.1.6
   sqlite3: ^3.7.1
   sqlite3_flutter_libs: ^0.6.0+eol

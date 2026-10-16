@@ -1,13 +1,10 @@
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
-import 'package:sqlite3/open.dart';
 import 'package:sqlite3/sqlite3.dart';
 
 import '../../core/utils.dart';
-import '../models/browser_models.dart';
 import '../models/models.dart';
-import '../models/site_activity.dart';
 import 'browser_detector.dart';
 import 'vault_service.dart';
 
@@ -84,21 +81,8 @@ class ChromiumCleanupService {
 
   // -------------------------------------------------------------- loading
 
-  static bool _loaderReady = false;
-
-  void _ensureSqliteLoader() {
-    if (_loaderReady) return;
-    if (Platform.isLinux) {
-      open.overrideFor(OperatingSystem.linux, () {
-        try {
-          return DynamicLibrary.open('libsqlite3.so');
-        } catch (_) {
-          return DynamicLibrary.open('libsqlite3.so.0');
-        }
-      });
-    }
-    _loaderReady = true;
-  }
+  // sqlite3 3.x loads its native library through the build hook shipped by
+  // sqlite3_flutter_libs — no manual DynamicLibrary loading needed here.
 
   // ----------------------------------------------------------------- scan
 
@@ -180,7 +164,6 @@ class ChromiumCleanupService {
   }
 
   List<SiteActivity> _readHistory(String dbPath, DateTime start, DateTime end) {
-    _ensureSqliteLoader();
     final byDomain = <String, SiteActivity>{};
     try {
       final db = sqlite3.open(dbPath, mode: OpenMode.readOnly);
@@ -211,7 +194,7 @@ class ChromiumCleanupService {
           }
         }
       } finally {
-        db.dispose();
+        db.close();
       }
     } catch (_) {
       // Locked / unreadable DB — report no history rather than crash.
@@ -220,7 +203,6 @@ class ChromiumCleanupService {
   }
 
   List<SiteActivity> _readCookies(String dbPath, DateTime start, DateTime end) {
-    _ensureSqliteLoader();
     final byDomain = <String, SiteActivity>{};
     try {
       final db = sqlite3.open(dbPath, mode: OpenMode.readOnly);
@@ -257,7 +239,7 @@ class ChromiumCleanupService {
           }
         }
       } finally {
-        db.dispose();
+        db.close();
       }
     } catch (_) {
       // Locked / unreadable DB.
@@ -313,7 +295,6 @@ class ChromiumCleanupService {
   }
 
   int _deleteCookieRows(String dbPath, List<String> domains) {
-    _ensureSqliteLoader();
     final db = sqlite3.open(dbPath);
     var total = 0;
     try {
@@ -326,7 +307,7 @@ class ChromiumCleanupService {
         stmt.execute([d]);
         total += db.updatedRows;
       }
-      stmt.dispose();
+      stmt.close();
       db.execute('COMMIT');
     } catch (_) {
       try {
@@ -334,7 +315,7 @@ class ChromiumCleanupService {
       } catch (_) {}
       rethrow;
     } finally {
-      db.dispose();
+      db.close();
     }
     return total;
   }
@@ -361,12 +342,11 @@ class ChromiumCleanupService {
   }
 
   int _deleteHistoryRows(String dbPath, DateTime start, DateTime end) {
-    _ensureSqliteLoader();
     final db = sqlite3.open(dbPath);
     var removed = 0;
     try {
       db.execute('BEGIN');
-      final rs = db.select(
+      db.execute(
         'DELETE FROM visits WHERE visit_time BETWEEN ? AND ?',
         [dartToChromium(start), dartToChromium(end)],
       );
@@ -401,7 +381,7 @@ class ChromiumCleanupService {
       } catch (_) {}
       rethrow;
     } finally {
-      db.dispose();
+      db.close();
     }
     return removed;
   }

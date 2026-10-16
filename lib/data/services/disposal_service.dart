@@ -148,7 +148,7 @@ class DisposalService {
           in dir.list(followLinks: false)) {
         await _shred(child.path);
       }
-      await dir.deleteSync();
+      dir.deleteSync();
       return;
     }
 

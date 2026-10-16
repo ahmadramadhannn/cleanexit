@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
-import 'package:watcher/watcher.dart';
 
 import '../../core/constants.dart';
 import '../models/models.dart';
@@ -117,8 +116,8 @@ class FileWatcherService {
       final isDir = type == FileSystemEntityType.directory;
 
       var size = 0;
-      var modified = st.lastAt;
-      var created = st.firstAt ?? st.lastAt;
+      var modified = st.lastAt ?? DateTime.now();
+      var created = st.firstAt ?? st.lastAt ?? DateTime.now();
       try {
         final stat = FileStat.statSync(path);
         size = stat.size;

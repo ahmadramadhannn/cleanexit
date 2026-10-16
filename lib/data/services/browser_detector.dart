@@ -8,6 +8,8 @@ import '../models/browser_models.dart';
 /// Finds Chromium-family browsers installed on this machine and enumerates
 /// their profile folders (the ones that actually contain cookie/history DBs).
 class BrowserDetector {
+  const BrowserDetector();
+
   Future<List<BrowserApp>> detect() async {
     final out = <BrowserApp>[];
     for (final def in CeConstants.browsers) {

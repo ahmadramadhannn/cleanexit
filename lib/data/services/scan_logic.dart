@@ -1,4 +1,5 @@
-import '../../core/utils.dart';
+import 'dart:io';
+
 import '../models/models.dart';
 
 /// Pure, host-testable scan logic shared by the scanner service.
