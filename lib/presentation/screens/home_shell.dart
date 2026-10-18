@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../core/app_nav.dart';
 import '../../core/theme.dart';
+import '../screens/accounts_screen.dart';
 import '../screens/browser_cleanup_view.dart';
 import '../screens/home_screen.dart';
 import '../screens/live_session_view.dart';
@@ -9,12 +11,15 @@ import '../screens/review_screen.dart';
 import '../screens/session_done_view.dart';
 import '../screens/history_screen.dart';
 import '../screens/settings_screen.dart';
+import '../screens/trash_screen.dart';
+import '../viewmodels/accounts_cubit.dart';
 import '../viewmodels/history_cubit.dart';
 import '../viewmodels/session_cubit.dart';
+import '../viewmodels/trash_cubit.dart';
 
-/// Root layout: a navigation rail (Sessions / History / Settings).
-/// The Sessions pane swaps between dashboard and the in-flow screens
-/// depending on [SessionPhase].
+/// Root layout: a navigation rail (Sessions / Accounts / Trash / History /
+/// Settings). The Sessions pane swaps between dashboard and the in-flow
+/// screens depending on [SessionPhase].
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
 
@@ -25,8 +30,28 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
 
+  void _onNavChanged() {
+    if (mounted && AppNav.I.index != _index) {
+      setState(() => _index = AppNav.I.index);
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    AppNav.I.addListener(_onNavChanged);
+  }
+
+  @override
+  void dispose() {
+    AppNav.I.removeListener(_onNavChanged);
+    super.dispose();
+  }
+
   static const _destinations = [
     (icon: Icons.dashboard_outlined, selectedIcon: Icons.dashboard, label: 'Sessions'),
+    (icon: Icons.account_circle_outlined, selectedIcon: Icons.account_circle, label: 'Accounts'),
+    (icon: Icons.delete_outline, selectedIcon: Icons.delete, label: 'Trash'),
     (icon: Icons.history_outlined, selectedIcon: Icons.history, label: 'History'),
     (icon: Icons.settings_outlined, selectedIcon: Icons.settings, label: 'Settings'),
   ];
@@ -40,8 +65,10 @@ class _HomeShellState extends State<HomeShell> {
           const VerticalDivider(width: 1),
           Expanded(
             child: switch (_index) {
-              1 => const HistoryScreen(),
-              2 => const SettingsScreen(),
+              1 => const AccountsScreen(),
+              2 => const TrashScreen(),
+              3 => const HistoryScreen(),
+              4 => const SettingsScreen(),
               _ => const _SessionsPane(),
             },
           ),
@@ -54,8 +81,11 @@ class _HomeShellState extends State<HomeShell> {
     return NavigationRail(
       selectedIndex: _index,
       onDestinationSelected: (i) {
+        AppNav.I.index = i;
         setState(() => _index = i);
-        if (i == 1) context.read<HistoryCubit>().refresh();
+        if (i == 1) context.read<AccountsCubit>().load();
+        if (i == 2) context.read<TrashCubit>().refresh();
+        if (i == 3) context.read<HistoryCubit>().refresh();
       },
       extended: MediaQuery.of(context).size.width >= 1050,
       minExtendedWidth: 190,
@@ -105,20 +135,17 @@ class _SessionsPane extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<SessionCubit, SessionState>(
-      builder: (context, state) {
-        return AnimatedSwitcher(
-          duration: const Duration(milliseconds: 220),
-          child: switch (state.phase) {
-            SessionPhase.idle => const HomeScreen(key: ValueKey('home')),
-            SessionPhase.watching => const LiveSessionView(key: ValueKey('live')),
-            SessionPhase.scanning => const ScanProgressView(key: ValueKey('scan')),
-            SessionPhase.reviewing => const ReviewScreen(key: ValueKey('review')),
-            SessionPhase.browserStep => const BrowserCleanupView(key: ValueKey('browser')),
-            SessionPhase.done => const SessionDoneView(key: ValueKey('done')),
-          },
-        );
-      },
-    );
+    // Direct switch — no AnimatedSwitcher here. Fading in from opacity 0
+    // depends on frames being scheduled; when the pane rebuilds during a
+    // busy moment the fade can stall and leave the panel permanently blank.
+    final phase = context.watch<SessionCubit>().state.phase;
+    return switch (phase) {
+      SessionPhase.idle => const HomeScreen(),
+      SessionPhase.watching => const LiveSessionView(),
+      SessionPhase.scanning => const ScanProgressView(),
+      SessionPhase.reviewing => const ReviewScreen(),
+      SessionPhase.browserStep => const BrowserCleanupView(),
+      SessionPhase.done => const SessionDoneView(),
+    };
   }
 }

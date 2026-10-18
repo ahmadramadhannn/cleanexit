@@ -2,6 +2,60 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme.dart';
 
+/// Branded replacement for Flutter's default grey error box. Used by
+/// ErrorWidget.builder (assigned once in main()); also pumpable directly
+/// in widget tests.
+class CeErrorCard extends StatelessWidget {
+  final FlutterErrorDetails details;
+
+  const CeErrorCard({super.key, required this.details});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: CeColors.bg,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.error_outline, color: CeColors.danger),
+                      SizedBox(width: 10),
+                      Text(
+                        'Something went wrong rendering this panel',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13.5,
+                          color: CeColors.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    '${details.exception}',
+                    style: CeText.mono(
+                      size: 11.5,
+                      color: CeColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Small square KPI card used across the dashboard and flow screens.
 class StatCard extends StatelessWidget {
   final IconData icon;

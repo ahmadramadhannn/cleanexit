@@ -1,17 +1,35 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../core/app_nav.dart';
 import '../../core/constants.dart';
 import '../../core/theme.dart';
 import '../../core/utils.dart';
 import '../../data/models/models.dart';
 import '../../di.dart';
+import '../viewmodels/accounts_cubit.dart';
 import '../viewmodels/session_cubit.dart';
 import '../widgets/common.dart';
 
 /// Dashboard — the two entry points plus context about what gets watched.
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        // First scan only; the Accounts tab re-scans on demand.
+        context.read<AccountsCubit>().load(force: false);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,30 +55,39 @@ class HomeScreen extends StatelessWidget {
               'then keep what you need and make everything else disappear.',
               style: TextStyle(fontSize: 13.5, color: CeColors.textSecondary),
             ),
-            const SizedBox(height: 24),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(
-                  child: ActionCard(
-                    icon: Icons.radar,
-                    title: 'Start a watched session',
-                    subtitle:
-                        'Begin now (optionally with a timer). CleanExit records every file that appears while you work and asks what to keep when you stop.',
-                    onTap: () => _openSetup(context, SessionMode.live),
+            const SizedBox(height: 20),
+            _accountsBanner(context),
+            const SizedBox(height: 4),
+            // IntrinsicHeight is REQUIRED here: CrossAxisAlignment.stretch
+            // inside an unbounded-height ListView forces every card to try
+            // to be infinitely tall, which throws during layout and leaves
+            // the whole dashboard blank. IntrinsicHeight bounds the row to
+            // the tallest card's intrinsic height instead.
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: ActionCard(
+                      icon: Icons.radar,
+                      title: 'Start a watched session',
+                      subtitle:
+                          'Begin now (optionally with a timer). CleanExit records every file that appears while you work and asks what to keep when you stop.',
+                      onTap: () => _openSetup(context, SessionMode.live),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: ActionCard(
-                    icon: Icons.schedule,
-                    title: 'Clean up past activity',
-                    subtitle:
-                        'Already used the PC? Pick a time range — like 11:00 to 11:25 — and CleanExit finds everything from that window.',
-                    onTap: () => _openSetup(context, SessionMode.retroactive),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: ActionCard(
+                      icon: Icons.schedule,
+                      title: 'Clean up past activity',
+                      subtitle:
+                          'Already used the PC? Pick a time range — like 11:00 to 11:25 — and CleanExit finds everything from that window.',
+                      onTap: () => _openSetup(context, SessionMode.retroactive),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
             const SizedBox(height: 28),
             SectionHeader(
@@ -90,6 +117,76 @@ class HomeScreen extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  /// Live "who is still logged in" strip. Reads the app-level AccountsCubit
+  /// (first scan fired once from initState).
+  Widget _accountsBanner(BuildContext context) {
+    return BlocBuilder<AccountsCubit, AccountsState>(
+      builder: (context, accounts) {
+        if (accounts.loading && accounts.total == 0) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 13,
+                  height: 13,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                SizedBox(width: 10),
+                Text(
+                  'Checking for signed-in browser accounts…',
+                  style: TextStyle(
+                      fontSize: 12, color: CeColors.textSecondary),
+                ),
+              ],
+            ),
+          );
+        }
+        if (accounts.signedIn.isEmpty) return const SizedBox.shrink();
+
+        final browsers =
+            accounts.signedIn.map((a) => a.browserName).toSet().toList();
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: Card(
+            color: CeColors.surfaceHigh,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(14),
+              onTap: () => AppNav.I.goTo(1),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+                child: Row(
+                  children: [
+                    const Icon(Icons.account_circle,
+                        color: CeColors.warning, size: 22),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        '${accounts.signedIn.length} browser account(s) are '
+                            'still signed in'
+                        '${browsers.isEmpty ? "" : " — ${browsers.join(", ")}"}. '
+                            'Sign them out before leaving this PC.',
+                        style: const TextStyle(
+                            fontSize: 12.5,
+                            height: 1.35,
+                            color: CeColors.textPrimary),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => AppNav.I.goTo(1),
+                      child: const Text('Review'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 

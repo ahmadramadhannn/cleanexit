@@ -42,8 +42,34 @@ Every browser database is **backed up into the vault before any change**,
 and the browser must be fully closed first (CleanExit detects running
 browsers and blocks until you quit them).
 
-> Edge and Firefox are intentionally out of v1 per project scope, but the
-> engine is list-driven — see *Extending* below.
+### Signed-in account monitor (new)
+Browsers remember who is logged in — in the very preference files they own.
+CleanExit reads those files and **detects, records and monitors every
+account signed into a browser on the machine**:
+
+- Chromium family via `Local State → profile.info_cache` and per-profile
+  `Preferences → account_info` (the files Chrome itself calls "user
+  preferences"),
+- Firefox Sync via `profiles.ini` + `signedInUser.json` (including
+  flatpak/snap installs).
+
+The **Accounts tab** shows who is signed in right now and who was seen
+before (with first/last-seen dates — the record survives sign-outs), and
+can **log every website out of a profile in one click** (vault-backed
+cookie wipe). The dashboard shows a warning banner whenever accounts are
+still signed in. Password stores are never touched.
+
+### Trash browser (new)
+The **Trash tab** opens the operating system's own trash — the XDG Trash
+(`~/.local/share/Trash`) on Linux and the Recycle Bin on Windows (Shell
+COM via PowerShell). You can see every deleted item with its original
+location and deletion date, **restore** items to where they came from,
+delete single items **for good**, or **empty the whole trash**. Files
+cleaned with the "Recycle Bin" disposal method land here too.
+
+> Edge and Firefox *cleanup* are intentionally out of v1 per project scope
+> (Firefox accounts are detected and recorded; its cookie schema differs),
+> but the engine is list-driven — see *Extending* below.
 
 ## Architecture (MVVM + BLoC)
 
@@ -100,7 +126,7 @@ lib/
 ├── di.dart                       service locator (Model layer wiring)
 ├── core/                         theme, constants (paths, browser defs), utils
 ├── data/
-│   ├── models/                   TrackedFile, SessionRecord, BrowserApp, …
+│   ├── models/                   TrackedFile, SessionRecord, BrowserAccount, …
 │   └── services/
 │       ├── file_scanner_service.dart     retro range scan (isolate)
 │       ├── file_watcher_service.dart     live session watcher
@@ -108,10 +134,15 @@ lib/
 │       ├── vault_service.dart            quarantine + restore + manifest
 │       ├── browser_detector.dart         installed Chromium browsers
 │       ├── chromium_cleanup_service.dart cookie/history scan + purge
+│       ├── browser_account_service.dart  signed-in account detection
+│       ├── browser_account_store.dart    account first/last-seen record
+│       ├── os_trash_service.dart         XDG trash / Recycle Bin browser
 │       └── session_store.dart            session history persistence
 └── presentation/
-    ├── viewmodels/               Session/Review/Browser/History/Settings cubits
-    └── screens/                  shell, dashboard, live, review, browser, history, settings
+    ├── viewmodels/               Session/Review/Browser/Accounts/Trash/
+    │                             History/Settings cubits
+    └── screens/                  shell, dashboard, live, review, browser,
+                                  accounts, trash, history, settings
 ```
 
 ## Extending
@@ -135,6 +166,13 @@ lib/
 
 ## Changelog
 
+- **1.1.0** — signed-in browser-account monitoring (detect, record over
+  time, one-click "log out all sites" per profile, dashboard warning
+  banner), OS trash browser (list / restore / delete forever / empty for
+  XDG Trash + Windows Recycle Bin), Nord frost theme, and a batch of
+  hardening fixes around session removal and file deletion (vanished
+  files no longer produce cleanup errors, no more emit-after-close
+  crashes, delete-record confirmation, vault cleanup on record delete).
 - **1.0.0** — first working version: hybrid tracking (live watch +
   retroactive scan), keep-or-clean review, recycle/vault/shred disposal,
   Chromium account cleanup with vault backups, session history, settings.

@@ -1,21 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-/// CleanExit visual language — "dark & secure".
-/// Charcoal surfaces, teal accent, monospace numerics.
+/// CleanExit visual language — "Nord frost".
+/// Polar-night surfaces, frost-blue accent, aurora status colors,
+/// monospace numerics. Dark theme only, by design.
 abstract final class CeColors {
-  static const Color bg = Color(0xFF14181D);
-  static const Color surface = Color(0xFF1C2128);
-  static const Color surfaceHigh = Color(0xFF232A33);
-  static const Color border = Color(0xFF2A313A);
-  static const Color textPrimary = Color(0xFFE6EAEE);
-  static const Color textSecondary = Color(0xFF8B95A1);
-  static const Color accent = Color(0xFF2DD4BF);
-  static const Color accentDim = Color(0xFF17453F);
-  static const Color danger = Color(0xFFF87171);
-  static const Color dangerDim = Color(0xFF4A2325);
-  static const Color warning = Color(0xFFFBBF24);
-  static const Color success = Color(0xFF34D399);
+  static const Color bg = Color(0xFF2E3440); // polar night 0
+  static const Color surface = Color(0xFF3B4252); // polar night 1
+  static const Color surfaceHigh = Color(0xFF434C5E); // polar night 2
+  static const Color border = Color(0xFF4C566A); // polar night 3
+  static const Color textPrimary = Color(0xFFECEFF4); // snow storm 2
+  static const Color textSecondary = Color(0xFFB4BECE); // dimmed snow storm
+  static const Color accent = Color(0xFF88C0D0); // frost
+  static const Color accentDim = Color(0xFF41576E); // frost over polar night
+  static const Color danger = Color(0xFFBF616A); // aurora red
+  static const Color dangerDim = Color(0xFF47333B);
+  static const Color warning = Color(0xFFEBCB8B); // aurora yellow
+  static const Color success = Color(0xFFA3BE8C); // aurora green
 }
 
 /// Monospace style for numbers, sizes and paths (falls back gracefully
@@ -49,13 +50,13 @@ abstract final class CeText {
 ThemeData buildCleanExitTheme() {
   const scheme = ColorScheme.dark(
     primary: CeColors.accent,
-    onPrimary: Color(0xFF06201C),
-    secondary: CeColors.accent,
-    onSecondary: Color(0xFF06201C),
+    onPrimary: CeColors.bg,
+    secondary: Color(0xFF81A1C1), // frost, one step cooler
+    onSecondary: CeColors.bg,
     surface: CeColors.surface,
     onSurface: CeColors.textPrimary,
     error: CeColors.danger,
-    onError: Color(0xFF2B0E0E),
+    onError: CeColors.bg,
   );
 
   final base = ThemeData(
@@ -138,7 +139,7 @@ ThemeData buildCleanExitTheme() {
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
         backgroundColor: CeColors.accent,
-        foregroundColor: const Color(0xFF06201C),
+        foregroundColor: CeColors.bg,
         textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5),
         padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),

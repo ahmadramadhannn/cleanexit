@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:sqlite3/sqlite3.dart';
 
+import '../../core/constants.dart';
 import '../../core/utils.dart';
 import '../models/models.dart';
 import 'browser_detector.dart';
@@ -247,7 +248,67 @@ class ChromiumCleanupService {
     return byDomain.values.toList();
   }
 
-  // --------------------------------------------------------------- cleanup
+  // -------------------------------------------------------------- cleanup
+
+  /// Absolute path of one Chromium profile directory, from the browser id
+  /// and the profile folder name ("Default", "Profile 1", …).
+  String profileDirFor(String browserKey, String profileDir) {
+    final def = CeConstants.browsers.firstWhere((d) => d.id == browserKey);
+    final dataRoot = CeConstants.expandPath(
+      Platform.isWindows ? def.windowsUserdata : def.linuxUserdata,
+    );
+    return def.flatProfileLayout ? dataRoot : p.join(dataRoot, profileDir);
+  }
+
+  /// Removes EVERY cookie of one profile — the "log all websites out"
+  /// action behind the Accounts tab. The databases are backed up into the
+  /// vault first, exactly like the range-based cleanup.
+  Future<SiteCleanupResult> clearAllCookiesForProfile({
+    required String browserKey,
+    required String browserName,
+    required String profileDirPath,
+    required String profileName,
+    required String sessionId,
+  }) async {
+    final cookieDbs = <String>[];
+    for (final candidate in [
+      p.join(profileDirPath, 'Network', 'Cookies'),
+      p.join(profileDirPath, 'Cookies'),
+      p.join(profileDirPath, 'Network', 'Extension Cookies'),
+      p.join(profileDirPath, 'Extension Cookies'),
+    ]) {
+      if (File(candidate).existsSync() && !cookieDbs.contains(candidate)) {
+        cookieDbs.add(candidate);
+      }
+    }
+
+    var removed = 0;
+    String? error;
+    for (final dbPath in cookieDbs) {
+      try {
+        await _backup(dbPath, browserKey, profileName, sessionId);
+        removed += _deleteAllCookieRows(dbPath);
+      } on SqliteException catch (e) {
+        error ??= 'Database locked — ${e.message}';
+      } catch (e) {
+        error ??= '$e';
+      }
+    }
+    if (cookieDbs.isEmpty) {
+      error ??= 'No cookie database found for this profile.';
+    }
+    return SiteCleanupResult('$browserKey:$profileName', removed, error);
+  }
+
+  int _deleteAllCookieRows(String dbPath) {
+    final db = sqlite3.open(dbPath);
+    try {
+      db.execute('DELETE FROM cookies');
+      return db.updatedRows;
+    } finally {
+      db.close();
+    }
+  }
 
   /// Removes ALL cookies (any creation time) for [domains] — that is what
   /// actually logs an account out. Backs every DB up into the vault first.
@@ -277,7 +338,7 @@ class ChromiumCleanupService {
       String? error;
       for (final dbPath in cookieDbs) {
         try {
-          await _backup(dbPath, app, profile, sessionId);
+          await _backup(dbPath, app.defId.name, profile.name, sessionId);
           removed += _deleteCookieRows(dbPath, domains);
         } on SqliteException catch (e) {
           error ??= 'Database locked — ${e.message}';
@@ -335,7 +396,7 @@ class ChromiumCleanupService {
     for (final profile in app.profiles) {
       final historyPath = profile.historyPath;
       if (historyPath == null || !File(historyPath).existsSync()) continue;
-      await _backup(historyPath, app, profile, sessionId);
+      await _backup(historyPath, app.defId.name, profile.name, sessionId);
       total += _deleteHistoryRows(historyPath, start, end);
     }
     return total;
@@ -390,15 +451,15 @@ class ChromiumCleanupService {
 
   Future<void> _backup(
     String dbPath,
-    BrowserApp app,
-    BrowserProfile profile,
+    String browserKey,
+    String profileName,
     String sessionId,
   ) async {
     final backupDir = p.join(
       vault.sessionDir(sessionId).path,
       'browser_backup',
-      app.defId.name,
-      profile.name,
+      browserKey,
+      profileName,
     );
     await Directory(backupDir).create(recursive: true);
     final name = p.basename(dbPath);
