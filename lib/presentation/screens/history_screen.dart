@@ -176,7 +176,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 const Spacer(),
                 IconButton(
                   tooltip: 'Delete record',
-                  onPressed: () => cubit.deleteRecord(record),
+                  onPressed: () => _confirmDelete(context, record),
                   icon: const Icon(Icons.close,
                       size: 16, color: CeColors.textSecondary),
                 ),
@@ -289,6 +289,34 @@ class _HistoryScreenState extends State<HistoryScreen> {
               context.read<HistoryCubit>().purgeVault(record);
             },
             child: const Text('Purge forever'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDelete(BuildContext context, SessionRecord record) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete this session record?'),
+        content: const Text(
+          'The history entry disappears from CleanExit. Any files still '
+          'parked in the vault for this session are removed with it — '
+          'files outside the vault were never touched.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: CeColors.danger),
+            onPressed: () {
+              Navigator.pop(ctx);
+              context.read<HistoryCubit>().deleteRecord(record);
+            },
+            child: const Text('Delete record'),
           ),
         ],
       ),

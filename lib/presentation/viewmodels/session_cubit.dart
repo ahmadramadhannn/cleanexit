@@ -95,6 +95,12 @@ class SessionCubit extends Cubit<SessionState> {
   final SessionStore _store;
   Timer? _ticker;
 
+  /// Guards against stopLive() re-entering itself: when the countdown hits
+  /// zero, _tick() calls stopLive(); the next tick can fire while the first
+  /// call is still awaiting the watcher teardown, and a second concurrent
+  /// teardown corrupted the flow right after a session was stopped.
+  bool _stopping = false;
+
   SessionCubit({
     required FileScannerService scanner,
     required FileWatcherService watcher,
@@ -122,10 +128,10 @@ class SessionCubit extends Cubit<SessionState> {
   }
 
   void _tick() {
-    if (state.phase != SessionPhase.watching) return;
+    if (isClosed || state.phase != SessionPhase.watching || _stopping) return;
     final remaining = state.remaining;
     if (state.timerEnd != null && remaining == Duration.zero) {
-      stopLive();
+      unawaited(stopLive());
       return;
     }
     emit(state.copyWith(watchedCount: _watcher.touchedCount));
@@ -133,19 +139,27 @@ class SessionCubit extends Cubit<SessionState> {
 
   /// User pressed stop (or the timer ran out) → collect files for review.
   Future<void> stopLive() async {
-    if (state.phase != SessionPhase.watching) return;
+    if (state.phase != SessionPhase.watching || _stopping) return;
+    _stopping = true;
     _ticker?.cancel();
     _ticker = null;
-    final end = DateTime.now();
-    emit(state.copyWith(statusText: 'Collecting session files…'));
-    await _watcher.stop();
-    final files = _watcher.snapshot();
-    emit(state.copyWith(
-      phase: SessionPhase.reviewing,
-      rangeEnd: end,
-      files: files,
-      clearStatus: true,
-    ));
+    try {
+      final end = DateTime.now();
+      emit(state.copyWith(statusText: 'Collecting session files…'));
+      await _watcher.stop();
+      // The user may have deleted every watched file while the session was
+      // running — an empty review list is a perfectly valid outcome.
+      final files = _watcher.snapshot();
+      if (isClosed) return;
+      emit(state.copyWith(
+        phase: SessionPhase.reviewing,
+        rangeEnd: end,
+        files: files,
+        clearStatus: true,
+      ));
+    } finally {
+      _stopping = false;
+    }
   }
 
   /// Workflow #2 — "I already used the PC, here's roughly when".
@@ -205,7 +219,20 @@ class SessionCubit extends Cubit<SessionState> {
       disposal: method,
       vaultDir: vaultDir,
     );
-    await _store.save(record);
+    try {
+      await _store.save(record);
+    } catch (e) {
+      // Saving the record must never block or crash the session flow —
+      // the user can still proceed to the browser step and done screen.
+      if (isClosed) return;
+      emit(state.copyWith(
+        phase: SessionPhase.browserStep,
+        lastRecord: record,
+        error: 'Session completed, but the record could not be saved: $e',
+      ));
+      return;
+    }
+    if (isClosed) return;
     emit(state.copyWith(
       phase: SessionPhase.browserStep,
       lastRecord: record,
@@ -230,7 +257,12 @@ class SessionCubit extends Cubit<SessionState> {
       historyCleared: historyCleared,
       status: skipped ? rec.status : SessionStatus.completed,
     );
-    await _store.save(updated);
+    try {
+      await _store.save(updated);
+    } catch (_) {
+      // Same as finishReview — never crash the flow on a persistence error.
+    }
+    if (isClosed) return;
     emit(state.copyWith(lastRecord: updated, phase: SessionPhase.done));
   }
 

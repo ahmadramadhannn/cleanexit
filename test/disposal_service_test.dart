@@ -75,17 +75,27 @@ void main() {
       expect(vault.readManifest('s-vault-run'), isNotNull);
     });
 
-    test('vanishing files produce a failed outcome, not a crash', () async {
+    test('vanishing files count as already disposed, never an error', () async {
       final vault = VaultService(p.join(tmpRoot.path, 'vault'));
       final disposal = DisposalService(vault);
 
-      final outcomes = await disposal.dispose(
-        paths: [p.join(tmpRoot.path, 'does-not-exist.txt')],
+      final gone = p.join(tmpRoot.path, 'does-not-exist.txt');
+
+      // Vault method: skipped by the stash, reported as done.
+      final vaultOutcomes = await disposal.dispose(
+        paths: [gone],
         method: DisposalMethod.vault,
         sessionId: 's-vanish',
       );
+      expect(vaultOutcomes.single.success, isTrue);
 
-      expect(outcomes.single.success, isFalse);
+      // Shred method: nothing to overwrite — silently done.
+      final shredOutcomes = await disposal.dispose(
+        paths: [gone],
+        method: DisposalMethod.shred,
+        sessionId: 's-vanish-shred',
+      );
+      expect(shredOutcomes.single.success, isTrue);
     });
   });
 

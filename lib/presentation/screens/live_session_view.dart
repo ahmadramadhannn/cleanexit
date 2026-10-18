@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -18,17 +20,28 @@ class LiveSessionView extends StatefulWidget {
 
 class _LiveSessionViewState extends State<LiveSessionView> {
   final List<(WatchKind, String, DateTime)> _feed = [];
+  StreamSubscription<WatchEvent>? _sub;
 
   @override
   void initState() {
     super.initState();
-    Services.watcher.stream.listen((event) {
+    // Store the subscription and cancel it in dispose() — an anonymous
+    // subscription kept the pane alive after leaving the watch screen and
+    // fed events into an unmounted widget tree.
+    _sub = Services.watcher.stream.listen((event) {
       if (!mounted) return;
       setState(() {
         _feed.insert(0, (event.kind, event.path, event.at));
         if (_feed.length > 7) _feed.removeLast();
       });
     });
+  }
+
+  @override
+  void dispose() {
+    unawaited(_sub?.cancel());
+    _sub = null;
+    super.dispose();
   }
 
   @override

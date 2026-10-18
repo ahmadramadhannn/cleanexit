@@ -116,6 +116,7 @@ class BrowserCubit extends Cubit<BrowserState> {
     emit(state.copyWith(detecting: true, error: null));
     try {
       final apps = await _detector.detect();
+      if (isClosed) return;
       emit(state.copyWith(
         detecting: false,
         detected: apps.where((a) => a.isDetected).toList(),
@@ -126,6 +127,7 @@ class BrowserCubit extends Cubit<BrowserState> {
         await inspect(state.detected.first);
       }
     } catch (e) {
+      if (isClosed) return;
       emit(state.copyWith(detecting: false, error: '$e'));
     }
   }
@@ -139,6 +141,7 @@ class BrowserCubit extends Cubit<BrowserState> {
         start: rangeStart,
         end: rangeEnd,
       );
+      if (isClosed) return;
       final sites = Map<String, List<SiteActivity>>.from(state.sites);
       final running = Map<String, bool>.from(state.running);
       final scanned = Set<String>.from(state.scanned);
@@ -162,6 +165,7 @@ class BrowserCubit extends Cubit<BrowserState> {
         activeBrowserId: app.defId.name,
       ));
     } catch (e) {
+      if (isClosed) return;
       emit(state.copyWith(busy: false, statusText: null, error: '$e'));
     }
   }
@@ -242,8 +246,10 @@ class BrowserCubit extends Cubit<BrowserState> {
         historyRemoved: historyRemoved,
       ));
     } on BrowserRunningException catch (e) {
+      if (isClosed) return;
       emit(state.copyWith(busy: false, statusText: null, error: e.toString()));
     } catch (e) {
+      if (isClosed) return;
       emit(state.copyWith(busy: false, statusText: null, error: '$e'));
     }
   }

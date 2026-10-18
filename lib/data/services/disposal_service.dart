@@ -36,11 +36,18 @@ class DisposalService {
         );
         final parked = manifest.items.map((i) => i.originalPath).toSet();
         for (final path in paths) {
-          outcomes.add(
-            parked.contains(path)
-                ? DisposalOutcome(path)
-                : DisposalOutcome(path, error: 'File vanished before stashing'),
-          );
+          if (parked.contains(path)) {
+            outcomes.add(DisposalOutcome(path));
+          } else if (!_exists(path)) {
+            // Already gone before we got there — the goal of a cleanup is
+            // exactly that. Not an error, just nothing left to do.
+            outcomes.add(DisposalOutcome(path));
+          } else {
+            outcomes.add(DisposalOutcome(
+              path,
+              error: 'Could not be stashed (locked or renamed)',
+            ));
+          }
         }
         return outcomes;
       } catch (e) {
@@ -54,6 +61,12 @@ class DisposalService {
       final path = paths[i];
       onProgress?.call(i, paths.length, path);
       try {
+        if (!_exists(path)) {
+          // Vanished between review and disposal (user deleted it, watcher
+          // recorded it, temp file cleaned itself up…) — already disposed.
+          outcomes.add(DisposalOutcome(path));
+          continue;
+        }
         if (method == DisposalMethod.recycle) {
           await _recycle(path);
         } else {
@@ -67,6 +80,9 @@ class DisposalService {
     onProgress?.call(paths.length, paths.length, '');
     return outcomes;
   }
+
+  bool _exists(String path) =>
+      File(path).existsSync() || Directory(path).existsSync();
 
   // ---------------------------------------------------------------- recycle
 

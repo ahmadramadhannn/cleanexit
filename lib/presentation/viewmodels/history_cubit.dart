@@ -84,7 +84,10 @@ class HistoryCubit extends Cubit<HistoryState> {
   }
 
   Future<void> deleteRecord(SessionRecord record) async {
+    // Remove the JSON record AND any vault data parked under its id —
+    // otherwise deleting a session left orphaned vault folders behind.
     await _store.delete(record.id);
+    _vault.deleteSessionQuietly(record.id);
     emit(HistoryState(sessions: _store.listAll()));
   }
 

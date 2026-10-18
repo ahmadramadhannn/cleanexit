@@ -131,6 +131,11 @@ class VaultService {
     } catch (_) {}
   }
 
+  /// Public wrapper so other layers (e.g. History record deletion) can drop
+  /// a session's vault data without knowing the internals.
+  void deleteSessionQuietly(String sessionId) =>
+      _deleteSessionQuietly(sessionId);
+
   /// Total bytes currently parked in the vault.
   int totalBytes() {
     final root = Directory(vaultRoot);
