@@ -136,7 +136,7 @@ class _TrashScreenState extends State<TrashScreen> {
                           separatorBuilder: (_, _) =>
                               const SizedBox(height: 8),
                           itemBuilder: (context, i) =>
-                              _tile(context, state.items[i]),
+                              _tile(context, state, state.items[i]),
                         ),
                 ),
               ],
@@ -147,9 +147,11 @@ class _TrashScreenState extends State<TrashScreen> {
     );
   }
 
-  Widget _tile(BuildContext context, TrashItem item) {
+  Widget _tile(BuildContext context, TrashState state, TrashItem item) {
     final cubit = context.read<TrashCubit>();
-    final state = context.watch<TrashState>();
+    // NOTE: `state` comes from the BlocConsumer builder — never
+    // context.watch<TrashState>(), which has no matching provider and
+    // throws "Could not find the correct Provider<TrashState>".
     return Card(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),

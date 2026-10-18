@@ -63,27 +63,32 @@ class _BrowserBody extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Account cleanup',
-                            style: TextStyle(
-                                fontSize: 19, fontWeight: FontWeight.w800),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            'Optional — sign the session\'s websites out of '
-                            'the browsers you picked in Settings → Preferred '
-                            'browsers.',
-                            style: const TextStyle(
-                                fontSize: 12.5,
-                                color: CeColors.textSecondary),
-                          ),
-                        ],
+                      // Expanded so the subtitle WRAPS at narrow window
+                      // widths — unbounded, Text rendered on one long line
+                      // and the header overflowed horizontally.
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Account cleanup',
+                              style: TextStyle(
+                                  fontSize: 19, fontWeight: FontWeight.w800),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              'Optional — sign the session\'s websites out of '
+                              'the browsers you picked in Settings → Preferred '
+                              'browsers.',
+                              style: const TextStyle(
+                                  fontSize: 12.5,
+                                  color: CeColors.textSecondary),
+                            ),
+                          ],
+                        ),
                       ),
-                      const Spacer(),
                       TextButton(
                         onPressed: state.busy
                             ? null
@@ -180,7 +185,7 @@ class _BrowserBody extends StatelessWidget {
                       child: ListView(
                         children: [
                           for (final app in state.detected)
-                            _browserCard(context, app),
+                            _browserCard(context, state, app),
                           const SizedBox(height: 10),
                           _optionsRow(context, state),
                         ],
@@ -252,9 +257,15 @@ class _BrowserBody extends StatelessWidget {
     );
   }
 
-  Widget _browserCard(BuildContext context, BrowserApp app) {
+  Widget _browserCard(
+    BuildContext context,
+    BrowserState state,
+    BrowserApp app,
+  ) {
     final cubit = context.read<BrowserCubit>();
-    final state = context.watch<BrowserState>();
+    // NOTE: `state` comes from the BlocConsumer builder — never
+    // context.watch<BrowserState>(), which has no matching provider and
+    // throws "Could not find the correct Provider<BrowserState>".
     final id = app.defId.name;
     final sites = state.sites[id] ?? const <SiteActivity>[];
     final isScanned = state.scanned.contains(id);

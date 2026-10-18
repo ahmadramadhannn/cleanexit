@@ -12,45 +12,58 @@ class CeErrorCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Scrollable on purpose: exception texts (like a missing-provider error
+    // with its code samples) can be far taller than the window. A plain
+    // Center+Column overflowed with "BOTTOM OVERFLOWED BY …" — which is the
+    // last thing an error panel should do.
     return Material(
       color: CeColors.bg,
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Card(
-            child: Padding(
-              padding: const EdgeInsets.all(18),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(Icons.error_outline, color: CeColors.danger),
-                      SizedBox(width: 10),
-                      Text(
-                        'Something went wrong rendering this panel',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13.5,
-                          color: CeColors.textPrimary,
-                        ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(18),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(Icons.error_outline, color: CeColors.danger),
+                              SizedBox(width: 10),
+                              Text(
+                                'Something went wrong rendering this panel',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13.5,
+                                  color: CeColors.textPrimary,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            '${details.exception}',
+                            style: CeText.mono(
+                              size: 11.5,
+                              color: CeColors.textSecondary,
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    '${details.exception}',
-                    style: CeText.mono(
-                      size: 11.5,
-                      color: CeColors.textSecondary,
                     ),
                   ),
-                ],
+                ),
               ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }

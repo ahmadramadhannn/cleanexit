@@ -97,7 +97,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
                   const _SectionLabel('Signed in right now'),
                   const SizedBox(height: 8),
                   for (final account in state.signedIn)
-                    _accountCard(context, account, current: true),
+                    _accountCard(context, state, account, current: true),
                 ] else
                   _emptyCurrent(state),
                 if (!state.noBrowsersSelected &&
@@ -106,7 +106,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
                   const _SectionLabel('Seen before — no longer detected'),
                   const SizedBox(height: 8),
                   for (final account in state.previouslySeen)
-                    _accountCard(context, account, current: false),
+                    _accountCard(context, state, account, current: false),
                 ],
                 const SizedBox(height: 40),
               ],
@@ -257,11 +257,15 @@ class _AccountsScreenState extends State<AccountsScreen> {
 
   Widget _accountCard(
     BuildContext context,
+    AccountsState state,
     BrowserAccount account, {
     required bool current,
   }) {
     final cubit = context.read<AccountsCubit>();
-    final state = context.watch<AccountsState>();
+    // NOTE: `state` is passed down from the BlocConsumer builder on purpose.
+    // context.watch<AccountsState>() would look for a Provider<AccountsState>,
+    // which BlocProvider<AccountsCubit> does not create — that threw
+    // "Could not find the correct Provider<AccountsState>" at runtime.
     final isChromium = account.browserKey != 'firefox';
 
     return Card(

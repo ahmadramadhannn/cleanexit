@@ -21,18 +21,21 @@ import 'data/services/vault_service.dart';
 /// ViewModels (BLoC cubits) pull these; Views never do (MVVM).
 abstract final class Services {
   static late final String appSupportPath;
-  static late final VaultService vault;
-  static late final DisposalService disposal;
-  static late final SessionStore sessions;
-  static late final SettingsStore settingsStore;
+
+  // These are `late` (not `late final`) so tests can rewire stubs between
+  // cases; production writes them exactly once in init().
+  static late VaultService vault;
+  static late DisposalService disposal;
+  static late SessionStore sessions;
+  static late SettingsStore settingsStore;
   static late AppSettings settings;
-  static late final FileScannerService scanner;
-  static late final FileWatcherService watcher;
-  static late final BrowserDetector browserDetector;
-  static late final ChromiumCleanupService chromium;
-  static late final BrowserAccountService accountScanner;
-  static late final BrowserAccountStore accountStore;
-  static late final OsTrashService osTrash;
+  static late FileScannerService scanner;
+  static late FileWatcherService watcher;
+  static late BrowserDetector browserDetector;
+  static late ChromiumCleanupService chromium;
+  static late BrowserAccountService accountScanner;
+  static late BrowserAccountStore accountStore;
+  static late OsTrashService osTrash;
 
   static Future<void> init() async {
     final dir = await getApplicationSupportDirectory();
