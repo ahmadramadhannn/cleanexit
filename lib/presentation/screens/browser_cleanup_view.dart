@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../core/app_nav.dart';
 import '../../core/theme.dart';
 import '../../core/utils.dart';
 import '../../data/models/models.dart';
@@ -24,6 +25,9 @@ class BrowserCleanupView extends StatelessWidget {
       create: (_) => BrowserCubit(
         detector: Services.browserDetector,
         chromium: Services.chromium,
+        preferredBrowserIds: Set<String>.from(
+          Services.settings.preferredBrowsers,
+        ),
         rangeStart: rangeStart,
         rangeEnd: rangeEnd,
         sessionId: sessionId,
@@ -70,7 +74,9 @@ class _BrowserBody extends StatelessWidget {
                           ),
                           const SizedBox(height: 3),
                           Text(
-                            'Optional — sign the websites of this session out of every Chromium browser on this machine.',
+                            'Optional — sign the session\'s websites out of '
+                            'the browsers you picked in Settings → Preferred '
+                            'browsers.',
                             style: const TextStyle(
                                 fontSize: 12.5,
                                 color: CeColors.textSecondary),
@@ -92,6 +98,55 @@ class _BrowserBody extends StatelessWidget {
                       padding: EdgeInsets.all(30),
                       child: Center(child: CircularProgressIndicator()),
                     )
+                  else if (state.noBrowsersSelected)
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(22),
+                        child: Column(
+                          children: [
+                            const Icon(Icons.manage_accounts_outlined,
+                                size: 40, color: CeColors.accent),
+                            const SizedBox(height: 12),
+                            const Text(
+                              'You have not chosen any browsers to watch yet.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                  color: CeColors.textSecondary,
+                                  fontSize: 13),
+                            ),
+                            const SizedBox(height: 6),
+                            const Text(
+                              'Pick your browsers in Settings → Preferred '
+                              'browsers — the cleanup step only touches the '
+                              'ones you chose.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                  color: CeColors.textSecondary,
+                                  fontSize: 12,
+                                  height: 1.45),
+                            ),
+                            const SizedBox(height: 16),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                OutlinedButton.icon(
+                                  onPressed: () => AppNav.I.goTo(4),
+                                  icon: const Icon(Icons.settings_outlined,
+                                      size: 16),
+                                  label: const Text('Choose browsers'),
+                                ),
+                                const SizedBox(width: 10),
+                                FilledButton(
+                                  onPressed: () => sessionCubit
+                                      .recordBrowserStep(skipped: true),
+                                  child: const Text('Skip and finish'),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
                   else if (state.detected.isEmpty)
                     Card(
                       child: Padding(
@@ -102,7 +157,9 @@ class _BrowserBody extends StatelessWidget {
                                 size: 40, color: CeColors.textSecondary),
                             const SizedBox(height: 12),
                             const Text(
-                              'No Chromium-family browser found\n(Chrome, Brave, Vivaldi, Opera).',
+                              'None of the browsers you picked is installed '
+                              'on this machine (or it keeps no readable '
+                              'profile data).',
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                   color: CeColors.textSecondary,

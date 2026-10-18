@@ -11,6 +11,11 @@ class BrowserState extends Equatable {
   final bool detecting;
   final List<BrowserApp> detected;
 
+  /// True when the user has not picked any preferred browser in Settings —
+  /// the cleanup step then offers the Settings shortcut instead of guessing
+  /// which browsers to read.
+  final bool noBrowsersSelected;
+
   /// Per browser id: sites with activity in the session range.
   final Map<String, List<SiteActivity>> sites;
   final Map<String, bool> running;
@@ -32,6 +37,7 @@ class BrowserState extends Equatable {
   const BrowserState({
     this.detecting = false,
     this.detected = const [],
+    this.noBrowsersSelected = false,
     this.sites = const {},
     this.running = const {},
     this.scanned = const {},
@@ -48,6 +54,7 @@ class BrowserState extends Equatable {
   BrowserState copyWith({
     bool? detecting,
     List<BrowserApp>? detected,
+    bool? noBrowsersSelected,
     Map<String, List<SiteActivity>>? sites,
     Map<String, bool>? running,
     Set<String>? scanned,
@@ -63,6 +70,7 @@ class BrowserState extends Equatable {
     return BrowserState(
       detecting: detecting ?? this.detecting,
       detected: detected ?? this.detected,
+      noBrowsersSelected: noBrowsersSelected ?? this.noBrowsersSelected,
       sites: sites ?? this.sites,
       running: running ?? this.running,
       scanned: scanned ?? this.scanned,
@@ -83,9 +91,9 @@ class BrowserState extends Equatable {
 
   @override
   List<Object?> get props => [
-        detecting, detected, sites, running, scanned, activeBrowserId,
-        selectedDomains, clearHistory, busy, statusText, outcomes,
-        historyRemoved, error,
+        detecting, detected, noBrowsersSelected, sites, running, scanned,
+        activeBrowserId, selectedDomains, clearHistory, busy, statusText,
+        outcomes, historyRemoved, error,
       ];
 }
 
@@ -102,9 +110,14 @@ class BrowserCubit extends Cubit<BrowserState> {
   final DateTime rangeEnd;
   final String sessionId;
 
+  /// Browser ids the user picked in Settings. Only these are detected and
+  /// offered here — the app never guesses which browsers to touch.
+  final Set<String> preferredBrowserIds;
+
   BrowserCubit({
     required BrowserDetector detector,
     required ChromiumCleanupService chromium,
+    required this.preferredBrowserIds,
     required this.rangeStart,
     required this.rangeEnd,
     required this.sessionId,
@@ -113,18 +126,27 @@ class BrowserCubit extends Cubit<BrowserState> {
         super(const BrowserState());
 
   Future<void> load() async {
-    emit(state.copyWith(detecting: true, error: null));
-    try {
-      final apps = await _detector.detect();
-      if (isClosed) return;
+    if (preferredBrowserIds.isEmpty) {
       emit(state.copyWith(
         detecting: false,
-        detected: apps.where((a) => a.isDetected).toList(),
-        activeBrowserId:
-            apps.where((a) => a.isDetected).isNotEmpty ? null : null,
+        detected: const [],
+        noBrowsersSelected: true,
       ));
-      if (state.detected.isNotEmpty) {
-        await inspect(state.detected.first);
+      return;
+    }
+    emit(state.copyWith(detecting: true, error: null));
+    try {
+      final apps =
+          await _detector.detect(onlyIds: preferredBrowserIds);
+      if (isClosed) return;
+      final found = apps.where((a) => a.isDetected).toList();
+      emit(state.copyWith(
+        detecting: false,
+        detected: found,
+        noBrowsersSelected: false,
+      ));
+      if (found.isNotEmpty) {
+        await inspect(found.first);
       }
     } catch (e) {
       if (isClosed) return;

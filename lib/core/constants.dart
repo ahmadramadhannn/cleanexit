@@ -56,9 +56,11 @@ abstract final class CeConstants {
     '.dart_tool', '.pub-cache', '.atom', '.bundle',
   };
 
-  /// Chromium-family browsers supported in v1 (per project decision:
-  /// Chrome + the Chromium reuses; Edge/Firefox can be added later — the
-  /// engine is data-driven off this list).
+  /// Chromium-family browsers CleanExit knows how to clean. The engine is
+  /// data-driven off this list — detection, account monitoring and cookie
+  /// cleanup all iterate it. The user picks WHICH of these (plus Firefox,
+  /// monitor-only) to watch in Settings → Preferred browsers; nothing is
+  /// ever scanned just because it happens to be installed.
   static const List<BrowserDef> browsers = [
     BrowserDef(
       id: 'chrome',
@@ -66,6 +68,13 @@ abstract final class CeConstants {
       processNames: ['chrome.exe', 'chrome'],
       windowsUserdata: r'%LOCALAPPDATA%\Google\Chrome\User Data',
       linuxUserdata: '~/.config/google-chrome',
+    ),
+    BrowserDef(
+      id: 'edge',
+      displayName: 'Microsoft Edge',
+      processNames: ['msedge.exe', 'msedge'],
+      windowsUserdata: r'%LOCALAPPDATA%\Microsoft\Edge\User Data',
+      linuxUserdata: '~/.config/microsoft-edge',
     ),
     BrowserDef(
       id: 'brave',
@@ -89,7 +98,51 @@ abstract final class CeConstants {
       linuxUserdata: '~/.config/opera',
       flatProfileLayout: true,
     ),
+    BrowserDef(
+      id: 'chromium',
+      displayName: 'Chromium',
+      processNames: ['chromium.exe', 'chromium'],
+      windowsUserdata: r'%LOCALAPPDATA%\Chromium\User Data',
+      linuxUserdata: '~/.config/chromium',
+    ),
   ];
+
+  /// Firefox is monitor-only for now (accounts yes, cookie wipes no — its
+  /// cookie schema differs), but it IS a first-class choice in Settings.
+  static const String firefoxId = 'firefox';
+  static const String firefoxDisplayName = 'Firefox';
+
+  /// Every browser the user can pick in Settings — Chromium family
+  /// ([browsers]) plus monitor-only Firefox. Single source of truth for
+  /// the settings UI and for validating stored preferences.
+  static List<String> get selectableBrowserIds => [
+        for (final b in browsers) b.id,
+        firefoxId,
+      ];
+
+  static String browserDisplayName(String id) {
+    if (id == firefoxId) return firefoxDisplayName;
+    for (final b in browsers) {
+      if (b.id == id) return b.displayName;
+    }
+    return id;
+  }
+
+  /// Where a browser keeps its data — shown as a hint in Settings so the
+  /// user can recognize what they are enabling.
+  static String? browserDataPathHint(String id) {
+    if (id == firefoxId) {
+      return Platform.isWindows
+          ? r'%APPDATA%\Mozilla\Firefox'
+          : '~/.mozilla/firefox';
+    }
+    for (final b in browsers) {
+      if (b.id == id) {
+        return Platform.isWindows ? b.windowsUserdata : b.linuxUserdata;
+      }
+    }
+    return null;
+  }
 
   static String get home {
     if (Platform.isWindows) {

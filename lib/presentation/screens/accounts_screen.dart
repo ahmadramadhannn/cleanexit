@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../core/app_nav.dart';
 import '../../core/theme.dart';
 import '../../core/utils.dart';
 import '../../data/models/models.dart';
@@ -76,7 +77,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
                   ],
                 ),
                 const SizedBox(height: 4),
-                const Text(
+                Text(
                   'CleanExit reads the browsers\' own user-preference files to '
                   'detect and record every account signed in on this machine '
                   '— Chrome profiles, Chromium browsers and Firefox Sync. '
@@ -85,8 +86,12 @@ class _AccountsScreenState extends State<AccountsScreen> {
                       fontSize: 12.5, color: CeColors.textSecondary,
                       height: 1.45),
                 ),
+                const SizedBox(height: 8),
+                _watchingLine(context, state),
                 const SizedBox(height: 18),
-                if (state.signedIn.isNotEmpty) ...[
+                if (state.noBrowsersSelected)
+                  _chooseBrowsersCard(context)
+                else if (state.signedIn.isNotEmpty) ...[
                   _statsRow(state),
                   const SizedBox(height: 20),
                   const _SectionLabel('Signed in right now'),
@@ -95,7 +100,8 @@ class _AccountsScreenState extends State<AccountsScreen> {
                     _accountCard(context, account, current: true),
                 ] else
                   _emptyCurrent(state),
-                if (state.previouslySeen.isNotEmpty) ...[
+                if (!state.noBrowsersSelected &&
+                    state.previouslySeen.isNotEmpty) ...[
                   const SizedBox(height: 26),
                   const _SectionLabel('Seen before — no longer detected'),
                   const SizedBox(height: 8),
@@ -108,6 +114,88 @@ class _AccountsScreenState extends State<AccountsScreen> {
           ),
         );
       },
+    );
+  }
+
+  /// The user's own choice, always visible: which browsers are being
+  /// watched, with a one-tap way to change it.
+  Widget _watchingLine(BuildContext context, AccountsState state) {
+    if (state.noBrowsersSelected) {
+      return Text(
+        'No browsers are being watched yet — pick yours below or in Settings.',
+        style: TextStyle(
+          fontSize: 12.5,
+          fontWeight: FontWeight.w600,
+          color: CeColors.warning,
+        ),
+      );
+    }
+    if (state.watching.isEmpty) return const SizedBox.shrink();
+    return Row(
+      children: [
+        const Icon(Icons.visibility_outlined,
+            size: 15, color: CeColors.textSecondary),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            'Watching: ${state.watching.join(", ")}',
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: CeColors.textSecondary,
+            ),
+          ),
+        ),
+        TextButton(
+          onPressed: () => AppNav.I.goTo(4),
+          child: const Text('Change'),
+        ),
+      ],
+    );
+  }
+
+  /// Shown instead of any scan results until the user picks at least one
+  /// browser — the scan is NEVER run against browsers the user did not pick.
+  Widget _chooseBrowsersCard(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(22),
+        child: Column(
+          children: [
+            const Icon(Icons.manage_accounts_outlined,
+                size: 40, color: CeColors.accent),
+            const SizedBox(height: 12),
+            const Text(
+              'Choose which browsers to watch',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: CeColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'CleanExit does not guess. Select the browsers you actually '
+              'use — Chrome, Edge, Brave, Vivaldi, Opera, Chromium or '
+              'Firefox — in Settings → Preferred browsers. Their signed-in '
+              'accounts will be monitored here.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: CeColors.textSecondary,
+                fontSize: 12.5,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: () => AppNav.I.goTo(4),
+              icon: const Icon(Icons.settings_outlined, size: 16),
+              label: const Text('Choose browsers'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

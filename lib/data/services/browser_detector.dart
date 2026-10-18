@@ -10,9 +10,13 @@ import '../models/browser_models.dart';
 class BrowserDetector {
   const BrowserDetector();
 
-  Future<List<BrowserApp>> detect() async {
+  /// [onlyIds] restricts the scan to the browser ids the user picked in
+  /// Settings. `null` means "no preference recorded" and scans everything —
+  /// used only by diagnostics; the app always passes the user's selection.
+  Future<List<BrowserApp>> detect({Set<String>? onlyIds}) async {
     final out = <BrowserApp>[];
     for (final def in CeConstants.browsers) {
+      if (onlyIds != null && !onlyIds.contains(def.id)) continue;
       final dataRoot = CeConstants.expandPath(
         Platform.isWindows ? def.windowsUserdata : def.linuxUserdata,
       );

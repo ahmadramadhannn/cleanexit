@@ -3,14 +3,30 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../core/constants.dart';
 import '../../core/theme.dart';
 import '../../core/utils.dart';
 import '../../data/models/models.dart';
 import '../../di.dart';
 import '../viewmodels/settings_cubit.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Which supported browsers exist on this machine — shown as an
+    // informational hint next to each checkbox. Never auto-selects.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.read<SettingsCubit>().detectInstalledBrowsers();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -69,6 +85,96 @@ class SettingsScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 _AddRootRow(onAdd: cubit.addRoot),
+                const SizedBox(height: 26),
+                const _SectionTitle('Preferred browsers'),
+                const SizedBox(height: 6),
+                Card(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                        child: Text(
+                          'Only the browsers you pick here are watched for '
+                          'signed-in accounts and offered in the account '
+                          'cleanup step. Nothing is scanned until you choose. '
+                          'Firefox is monitored for accounts only — its cookie '
+                          'cleanup is not supported yet.',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            height: 1.45,
+                            color: CeColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                      for (final id in CeConstants.selectableBrowserIds)
+                        CheckboxListTile(
+                          value: settings.preferredBrowsers.contains(id),
+                          onChanged: (v) =>
+                              cubit.togglePreferredBrowser(id, v ?? false),
+                          secondary: const Icon(Icons.public_outlined,
+                              color: CeColors.accent),
+                          title: Text(
+                            CeConstants.browserDisplayName(id),
+                            style: const TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w600),
+                          ),
+                          subtitle: Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  CeConstants.browserDataPathHint(id) ?? id,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: CeText.mono(
+                                      size: 10.5,
+                                      color: CeColors.textSecondary),
+                                ),
+                              ),
+                              if (!state.detectedBrowserIds.contains(id))
+                                ...[
+                                  const SizedBox(width: 8),
+                                  const _NotDetectedChip(),
+                                ],
+                            ],
+                          ),
+                        ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                        child: Row(
+                          children: [
+                            TextButton.icon(
+                              onPressed: cubit.selectDetectedBrowsers,
+                              icon: const Icon(Icons.done_all, size: 16),
+                              label: const Text('Select detected'),
+                            ),
+                            const SizedBox(width: 8),
+                            TextButton(
+                              onPressed:
+                                  settings.preferredBrowsers.isEmpty
+                                      ? null
+                                      : cubit.clearPreferredBrowsers,
+                              child: const Text('Clear'),
+                            ),
+                            const Spacer(),
+                            Text(
+                              settings.preferredBrowsers.isEmpty
+                                  ? 'No browsers watched yet'
+                                  : 'Watching '
+                                      '${settings.preferredBrowsers.length} '
+                                      'browser(s)',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: CeColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 const SizedBox(height: 26),
                 const _SectionTitle('Disposal default'),
                 const SizedBox(height: 6),
@@ -157,6 +263,31 @@ class SettingsScreen extends StatelessWidget {
         Process.run('xdg-open', [path]);
       }
     } catch (_) {}
+  }
+}
+
+class _NotDetectedChip extends StatelessWidget {
+  const _NotDetectedChip();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: CeColors.surfaceHigh,
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(color: CeColors.border),
+      ),
+      child: const Text(
+        'NOT FOUND',
+        style: TextStyle(
+          fontSize: 8.5,
+          letterSpacing: 0.7,
+          fontWeight: FontWeight.w700,
+          color: CeColors.textSecondary,
+        ),
+      ),
+    );
   }
 }
 

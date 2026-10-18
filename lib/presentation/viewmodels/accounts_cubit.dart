@@ -3,10 +3,12 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../core/constants.dart';
 import '../../data/models/models.dart';
 import '../../data/services/browser_account_service.dart';
 import '../../data/services/browser_account_store.dart';
 import '../../data/services/chromium_cleanup_service.dart';
+import '../../di.dart';
 
 class AccountsState extends Equatable {
   final bool loading;
@@ -18,6 +20,15 @@ class AccountsState extends Equatable {
   /// the monitoring history ("you signed this out / it disappeared").
   final List<BrowserAccount> previouslySeen;
 
+  /// Display names of the browsers the user picked in Settings — the scan
+  /// only ever looks at these.
+  final List<String> watching;
+
+  /// True when the user has not picked any preferred browser yet. CleanExit
+  /// then deliberately watches NOTHING and the UI offers the Settings
+  /// shortcut instead of guessing which browsers to scan.
+  final bool noBrowsersSelected;
+
   final bool busy;
   final String? statusText;
   final String? error;
@@ -26,6 +37,8 @@ class AccountsState extends Equatable {
     this.loading = false,
     this.signedIn = const [],
     this.previouslySeen = const [],
+    this.watching = const [],
+    this.noBrowsersSelected = false,
     this.busy = false,
     this.statusText,
     this.error,
@@ -35,6 +48,8 @@ class AccountsState extends Equatable {
     bool? loading,
     List<BrowserAccount>? signedIn,
     List<BrowserAccount>? previouslySeen,
+    List<String>? watching,
+    bool? noBrowsersSelected,
     bool? busy,
     String? statusText,
     String? error,
@@ -43,6 +58,8 @@ class AccountsState extends Equatable {
       loading: loading ?? this.loading,
       signedIn: signedIn ?? this.signedIn,
       previouslySeen: previouslySeen ?? this.previouslySeen,
+      watching: watching ?? this.watching,
+      noBrowsersSelected: noBrowsersSelected ?? this.noBrowsersSelected,
       busy: busy ?? this.busy,
       statusText: statusText,
       error: error,
@@ -52,8 +69,10 @@ class AccountsState extends Equatable {
   int get total => signedIn.length + previouslySeen.length;
 
   @override
-  List<Object?> get props =>
-      [loading, signedIn, previouslySeen, busy, statusText, error];
+  List<Object?> get props => [
+        loading, signedIn, previouslySeen, watching, noBrowsersSelected,
+        busy, statusText, error,
+      ];
 }
 
 /// ViewModel behind the Accounts tab: scans the browsers' preference files,
@@ -80,14 +99,36 @@ class AccountsCubit extends Cubit<AccountsState> {
         _newSessionId = newSessionId,
         super(const AccountsState());
 
-  /// Scans the browsers' preference files. [force] = true re-scans even if
-  /// a scan already ran this app session (rail tab, manual refresh);
-  /// force = false only triggers the FIRST scan (dashboard banner).
+  /// Scans ONLY the browsers the user picked in Settings. [force] = true
+  /// re-scans even if a scan already ran this app session (rail tab, manual
+  /// refresh); force = false only triggers the FIRST scan (dashboard banner).
   Future<void> load({bool force = true}) async {
     if (!force && _lastScanAt != null) return;
+
+    // The user's choice, sanitized against the ids we actually know.
+    final preferred = Services.settings.preferredBrowsers
+        .where(CeConstants.selectableBrowserIds.contains)
+        .toSet();
+
+    if (preferred.isEmpty) {
+      // No browsers chosen — watching nothing is the honest answer. The UI
+      // shows the "choose your browsers" card instead of scanning behind
+      // the user's back. Records come back once a choice is made.
+      _lastScanAt = null;
+      emit(state.copyWith(
+        loading: false,
+        signedIn: [],
+        previouslySeen: [],
+        watching: const [],
+        noBrowsersSelected: true,
+        error: null,
+      ));
+      return;
+    }
+
     emit(state.copyWith(loading: true, error: null));
     try {
-      final scanned = await _service.scan();
+      final scanned = await _service.scan(onlyBrowserIds: preferred);
       final records = _store.upsertScan(scanned);
       if (isClosed) return;
       _lastScanAt = DateTime.now();
@@ -106,6 +147,10 @@ class AccountsCubit extends Cubit<AccountsState> {
         loading: false,
         signedIn: current,
         previouslySeen: earlier,
+        watching: [
+          for (final id in preferred) CeConstants.browserDisplayName(id),
+        ]..sort(),
+        noBrowsersSelected: false,
       ));
     } catch (e) {
       if (isClosed) return;

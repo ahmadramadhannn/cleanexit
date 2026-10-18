@@ -33,4 +33,4 @@ class BrowserApp {
 }
 
 /// Ids we use internally; maps to [CeConstants.browsers] definitions.
-enum BrowserDefId { chrome, brave, vivaldi, opera }
+enum BrowserDefId { chrome, edge, brave, vivaldi, opera, chromium }

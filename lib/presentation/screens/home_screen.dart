@@ -145,6 +145,46 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           );
         }
+        // The user has not picked their browsers yet — nudge instead of
+        // pretending "all clear".
+        if (accounts.noBrowsersSelected) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Card(
+              color: CeColors.surfaceHigh,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(14),
+                onTap: () => AppNav.I.goTo(4),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.manage_accounts_outlined,
+                          color: CeColors.accent, size: 22),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Text(
+                          'Choose which browsers CleanExit should watch for '
+                          'signed-in accounts — nothing is monitored until '
+                          'you pick them.',
+                          style: TextStyle(
+                              fontSize: 12.5,
+                              height: 1.35,
+                              color: CeColors.textPrimary),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => AppNav.I.goTo(4),
+                        child: const Text('Choose'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
         if (accounts.signedIn.isEmpty) return const SizedBox.shrink();
 
         final browsers =

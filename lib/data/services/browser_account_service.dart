@@ -32,7 +32,13 @@ class ParsedAccount {
 class BrowserAccountService {
   const BrowserAccountService();
 
-  Future<List<BrowserAccount>> scan() async {
+  /// Scans the chosen browsers' preference files for signed-in accounts.
+  ///
+  /// [onlyBrowserIds] restricts the scan to the browser ids the user picked
+  /// in Settings (Chromium ids plus 'firefox' for the monitor-only Firefox
+  /// section). `null` means "no preference recorded" and scans everything;
+  /// an EMPTY set scans nothing — the user has not chosen any browser yet.
+  Future<List<BrowserAccount>> scan({Set<String>? onlyBrowserIds}) async {
     final now = DateTime.now();
     final out = <BrowserAccount>[];
 
@@ -51,6 +57,9 @@ class BrowserAccountService {
     }
 
     for (final def in CeConstants.browsers) {
+      if (onlyBrowserIds != null && !onlyBrowserIds.contains(def.id)) {
+        continue;
+      }
       final dataRoot = CeConstants.expandPath(
         Platform.isWindows ? def.windowsUserdata : def.linuxUserdata,
       );
@@ -89,7 +98,9 @@ class BrowserAccountService {
     }
 
     // Firefox (also flatpak / snap installs on Linux).
-    for (final firefoxRoot in _firefoxRoots()) {
+    final wantFirefox =
+        onlyBrowserIds == null || onlyBrowserIds.contains('firefox');
+    for (final firefoxRoot in wantFirefox ? _firefoxRoots() : const <String>[]) {
       final ini = File(p.join(firefoxRoot, 'profiles.ini'));
       if (!ini.existsSync()) continue;
       try {
